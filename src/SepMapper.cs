@@ -11,8 +11,10 @@ public interface ISepMapperContext
     public SepMapperRulesForType<T> RegisterClass<T>() where T : class;
     public void UnregisterClass<T>() where T : class;
     public string Serialize<T>(T anyObject) where T : class;
+    public List<T> Parse<T>(TextReader csv) where T : class;
+    public List<T> Parse<T>(Stream csv) where T : class;
     public List<T> Parse<T>(string csv) where T : class;
-    public List<T> ParseFile<T>(string path) where T : class;
+
 }
 
 public class SepMapperContext : ISepMapperContext
@@ -38,6 +40,32 @@ public class SepMapperContext : ISepMapperContext
         return "";
     }
 
+    public void Write<T>(List<T> instances, Stream text) where T : class
+    {
+        using var writer = Sep.Writer().To(text);
+        this.Write<T>(instances, writer);
+    }
+
+    public void Write<T>(List<T> instance, TextWriter text) where T : class
+    {
+        using var writer = Sep.Writer().To(text);
+        this.Write<T>(instance, writer);
+    }
+
+    public List<T> Parse<T>(TextReader csv) where T : class
+    {
+        using var reader = Sep.Reader().From(csv);
+
+        return this.Parse<T>(reader);
+    }
+
+    public List<T> Parse<T>(Stream csv) where T : class
+    {
+        using var reader = Sep.Reader().From(csv);
+
+        return this.Parse<T>(reader);
+    }
+
     public List<T> Parse<T>(string csv) where T : class
     {
         using var reader = Sep.Reader().FromText(csv);
@@ -45,11 +73,19 @@ public class SepMapperContext : ISepMapperContext
         return this.Parse<T>(reader);
     }
 
-    public List<T> ParseFile<T>(string path) where T : class
+    private void Write<T>(List<T> instances, SepWriter writer) where T : class
     {
-        using var reader = Sep.Reader().FromFile(path);
+        var mapper = this.GetMapper<T>();
 
-        return this.Parse<T>(reader);
+        foreach (var instance in instances)
+        {
+            // TODO: get all rules
+            // TODO: get all columns from rules
+            // TODO: call the accessor to get the col val
+            // TODO: if not call call to CSV to transform
+            // TODO: write row 
+            // using var writeRow = writer.NewRow(readRow);
+        }
     }
 
     private List<T> Parse<T>(SepReader reader) where T : class
@@ -61,7 +97,7 @@ public class SepMapperContext : ISepMapperContext
             throw new Exception($"No mapping class registered for type: {typeof(T)}");
         }
 
-        var mapper = (SepMapperRulesForType<T>)this.mappers[typeof(T)];
+        var mapper = this.GetMapper<T>();
 
         var list = new List<T>();
 
@@ -70,7 +106,7 @@ public class SepMapperContext : ISepMapperContext
             foreach (var col in reader.Header.ColNames)
             {
                 // TODO: dynamic generic param
-                var rule = mapper.GetRule<string>(col);
+                var rule = mapper.GetRule(col);
                 if (rule?.Accessor is not null)
                 {
                     var setter = GetSetter(rule.Accessor);
@@ -92,6 +128,12 @@ public class SepMapperContext : ISepMapperContext
         }
 
         return list;
+    }
+
+
+    private SepMapperRulesForType<T> GetMapper<T>() where T : class
+    {
+        return this.mappers[typeof(T)];
     }
 
     private static Action<T, TProperty> GetSetter<T, TProperty>(Expression<Func<T, TProperty>> expression)
@@ -116,9 +158,10 @@ public class SepMapperContext : ISepMapperContext
 
 public class SepMapperRulesForType<T> where T : class
 {
+    // TODO: some form of type erasure SepMapperTypeRulesForProperty<T, P>
     private readonly Dictionary<string, dynamic> rules = new();
 
-    public SepMapperRulesForType<T> AddRule<P>(string key, Expression<Func<T, P>> accessor, [Optional] Func<string, P> toProperty, [Optional] Func<P, string> toCsv) where P : class
+    public SepMapperRulesForType<T> AddRule<P>(string key, Expression<Func<T, P>> accessor, [Optional] Func<string, P> toProperty, [Optional] Func<P, string> toCsv)
     {
         var propertyRules = new SepMapperTypeRulesForProperty<T, P>(accessor)
         {
@@ -129,13 +172,18 @@ public class SepMapperRulesForType<T> where T : class
         return this;
     }
 
-    public SepMapperTypeRulesForProperty<T, P>? GetRule<P>(string key) where P : class
+    public dynamic? GetRule(string key)
     {
-        return (SepMapperTypeRulesForProperty<T, P>)this.rules[key];
+        if (this.rules.ContainsKey(key))
+        {
+            // TODO: some form of type erasure
+            return this.rules[key];
+        }
+        return null;
     }
 }
 
-public class SepMapperTypeRulesForProperty<T, P> where T : class where P : class
+public class SepMapperTypeRulesForProperty<T, P> where T : class
 {
     public SepMapperTypeRulesForProperty(Expression<Func<T, P>> Accessor)
     {

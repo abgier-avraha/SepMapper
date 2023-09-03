@@ -1,10 +1,5 @@
 namespace SepMapper;
 
-using System.Linq.Expressions;
-using System.Reflection;
-using System.Runtime.InteropServices;
-using nietras.SeparatedValues;
-
 public class TestSepMapper
 {
     public class Something
@@ -29,12 +24,17 @@ public class TestSepMapper
                 accessor: a => a.SomeStringB,
                 toProperty: a => a.ToUpper()
                 // toCsv: a => a
+            )
+            .AddRule("SomeInt",
+                accessor: a => a.SomeInt,
+                toProperty: a => Int32.Parse(a)
+                // toCsv: a => a
             );
 
 
         var text = """
-        SomeStringA,SomeStringB
-        raw,transformed
+        SomeStringA,SomeStringB,SomeInt
+        raw,transformed,1
         """;
 
         var result = registry.Parse<Something>(text);
@@ -43,6 +43,7 @@ public class TestSepMapper
         {
             SomeStringA = "raw",
             SomeStringB = "TRANSFORMED",
+            SomeInt = 1,
         }, result[0]);
     }
 }
