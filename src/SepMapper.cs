@@ -10,16 +10,25 @@ public interface ISepMapperContext
 {
     public SepMapperRulesForType<T> RegisterClass<T>() where T : class;
     public void UnregisterClass<T>() where T : class;
-    public string Serialize<T>(T anyObject) where T : class;
-    public List<T> Parse<T>(TextReader csv) where T : class;
-    public List<T> Parse<T>(Stream csv) where T : class;
-    public List<T> Parse<T>(string csv) where T : class;
+
+    public string Write<T>(List<T> instances) where T : class;
+    public string Write<T>(List<T> instance, StringWriter text) where T : class;
+
+    public List<T> Read<T>(TextReader csv) where T : class;
+    public List<T> Read<T>(Stream csv) where T : class;
+    public List<T> Read<T>(string csv) where T : class;
 
 }
 
 public class SepMapperContext : ISepMapperContext
 {
+    private readonly Sep sep;
     private readonly Dictionary<Type, dynamic> mappers = new();
+
+    public SepMapperContext(Sep sep)
+    {
+        this.sep = sep;
+    }
 
     public SepMapperRulesForType<T> RegisterClass<T>() where T : class
     {
@@ -34,61 +43,80 @@ public class SepMapperContext : ISepMapperContext
         this.mappers.Remove(typeof(T));
     }
 
-    public string Serialize<T>(T anyObject) where T : class
+
+    public string Write<T>(List<T> instances) where T : class
     {
-        // TODO: use mapper else default behaviour
-        return "";
+        return this.Write(instances, new StringWriter());
     }
 
-    public void Write<T>(List<T> instances, Stream text) where T : class
+    public string Write<T>(List<T> instance, StringWriter text) where T : class
     {
-        using var writer = Sep.Writer().To(text);
-        this.Write<T>(instances, writer);
+        var writer = sep.Writer().To(text);
+        return this.WriteInner(instance, writer);
     }
 
-    public void Write<T>(List<T> instance, TextWriter text) where T : class
-    {
-        using var writer = Sep.Writer().To(text);
-        this.Write<T>(instance, writer);
-    }
-
-    public List<T> Parse<T>(TextReader csv) where T : class
+    public List<T> Read<T>(TextReader csv) where T : class
     {
         using var reader = Sep.Reader().From(csv);
 
-        return this.Parse<T>(reader);
+        return this.ReadInner<T>(reader);
     }
 
-    public List<T> Parse<T>(Stream csv) where T : class
+    public List<T> Read<T>(Stream csv) where T : class
     {
         using var reader = Sep.Reader().From(csv);
 
-        return this.Parse<T>(reader);
+        return this.ReadInner<T>(reader);
     }
 
-    public List<T> Parse<T>(string csv) where T : class
+    public List<T> Read<T>(string csv) where T : class
     {
         using var reader = Sep.Reader().FromText(csv);
 
-        return this.Parse<T>(reader);
+        return this.ReadInner<T>(reader);
     }
 
-    private void Write<T>(List<T> instances, SepWriter writer) where T : class
+    private string WriteInner<T>(List<T> instances, SepWriter writer) where T : class
     {
         var mapper = this.GetMapper<T>();
+        var rules = mapper.GetRules();
 
         foreach (var instance in instances)
         {
-            // TODO: get all rules
-            // TODO: get all columns from rules
-            // TODO: call the accessor to get the col val
-            // TODO: if not call call to CSV to transform
-            // TODO: write row 
-            // using var writeRow = writer.NewRow(readRow);
+            using var row = writer.NewRow();
+            foreach (var rule in rules)
+            {
+                if (rule.Value.ToCsv is not null)
+                {
+                    var value = rule.Value.ToCsv(rule.Value.Accessor.Compile().Invoke(instance));
+                    if (value.GetType() == typeof(string))
+                    {
+                        row[rule.Key].Set((string)value);
+                    }
+                    else
+                    {
+                        row[rule.Key].Set((string)value.ToString());
+                    }
+                }
+                else
+                {
+                    var value = rule.Value.Accessor.Compile().Invoke(instance);
+                    if (value.GetType() == typeof(string))
+                    {
+                        row[rule.Key].Set((string)value);
+                    }
+                    else
+                    {
+                        row[rule.Key].Set((string)value.ToString());
+                    }
+                }
+            }
         }
+
+        return writer.ToString();
     }
 
-    private List<T> Parse<T>(SepReader reader) where T : class
+    private List<T> ReadInner<T>(SepReader reader) where T : class
     {
         var model = (T)Activator.CreateInstance(typeof(T), new object[] { })!;
 
@@ -113,13 +141,13 @@ public class SepMapperContext : ISepMapperContext
 
                     if (rule.ToProperty != null)
                     {
-                        // Parse with ToProperty transformation
+                        // Read with ToProperty transformation
                         setter.Invoke(model, rule.ToProperty(readRow[col].ToString()));
                         list.Add(model);
                     }
                     else
                     {
-                        // Default parse
+                        // Default Read
                         setter.Invoke(model, readRow[col].ToString());
                         list.Add(model);
                     }
@@ -172,12 +200,18 @@ public class SepMapperRulesForType<T> where T : class
         return this;
     }
 
-    public dynamic? GetRule(string key)
+    public Dictionary<string, dynamic> GetRules()
     {
-        if (this.rules.ContainsKey(key))
+        return this.rules;
+        // TODO: some form of type erasure?
+    }
+
+    public dynamic? GetRule(string column)
+    {
+        if (this.rules.ContainsKey(column))
         {
-            // TODO: some form of type erasure
-            return this.rules[key];
+            // TODO: some form of type erasure?
+            return this.rules[column];
         }
         return null;
     }
