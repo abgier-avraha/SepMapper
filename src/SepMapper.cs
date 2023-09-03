@@ -57,21 +57,21 @@ public class SepMapperContext : ISepMapperContext
 
     public List<T> Read<T>(TextReader csv) where T : class
     {
-        using var reader = Sep.Reader().From(csv);
+        using var reader = this.sep.Reader().From(csv);
 
         return this.ReadInner<T>(reader);
     }
 
     public List<T> Read<T>(Stream csv) where T : class
     {
-        using var reader = Sep.Reader().From(csv);
+        using var reader = this.sep.Reader().From(csv);
 
         return this.ReadInner<T>(reader);
     }
 
     public List<T> Read<T>(string csv) where T : class
     {
-        using var reader = Sep.Reader().FromText(csv);
+        using var reader = this.sep.Reader().FromText(csv);
 
         return this.ReadInner<T>(reader);
     }
