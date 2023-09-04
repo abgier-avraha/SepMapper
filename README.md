@@ -3,8 +3,15 @@
 Example
 
 ```csharp
+// Setup your context
 var mapperContext = new SepMapperContext(new Sep(','));
 
+// Use it to register your mapped classes
+/*
+  TIP: Inject this instance via
+  services.AddSingleton<ISepMapperContext>(mapperContext)
+  in your dotnet project
+*/
 mapperContext
     .RegisterClass<Something>()
     .AddRule("SomeStringA",
@@ -30,13 +37,8 @@ var models = new List<Something>() {
 };
 
 // Write
-var csv = mapperContext.Write(models);
+var text = mapperContext.Write(models);
 
 // Read
-var text = """
-SomeStringA,SomeStringB,SomeInt
-raw,TRANSFORMED,1
-""";
-
 var result = mapperContext.Read<Something>(text);
 ```
