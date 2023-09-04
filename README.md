@@ -19,6 +19,7 @@ mapperContext
         accessor: a => a.SomeInt
     );
 
+
 var models = new List<Something>() {
     new ()
     {
@@ -27,4 +28,10 @@ var models = new List<Something>() {
         SomeInt = 1
     }
 };
+
+// Write
+var csv = mapperContext.Write(models);
+
+// Read
+var result = mapperContext.Read<Something>(text);
 ```
