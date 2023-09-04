@@ -23,6 +23,7 @@ public interface ISepMapperContext
 public class SepMapperContext : ISepMapperContext
 {
     private readonly Sep sep;
+    // TODO:: Some form of type erasure? Dictionary<Type, SepMapperRulesForType>
     private readonly Dictionary<Type, dynamic> mappers = new();
 
     public SepMapperContext(Sep sep)
@@ -200,17 +201,17 @@ public class SepMapperRulesForType<T> where T : class
         return this;
     }
 
+    // TODO: some form of type erasure?
     public Dictionary<string, dynamic> GetRules()
     {
         return this.rules;
-        // TODO: some form of type erasure?
     }
 
+    // TODO: some form of type erasure?
     public dynamic? GetRule(string column)
     {
         if (this.rules.ContainsKey(column))
         {
-            // TODO: some form of type erasure?
             return this.rules[column];
         }
         return null;
