@@ -35,7 +35,7 @@ var csv = mapperContext.Write(models);
 // Read
 var text = """
 SomeStringA,SomeStringB,SomeInt
-raw,transformed,1
+raw,TRANSFORMED,1
 """;
 
 var result = mapperContext.Read<Something>(text);
