@@ -8,7 +8,7 @@ using nietras.SeparatedValues;
 
 public interface ISepMapperContext
 {
-    public SepMapperRulesForType<T> RegisterClass<T>() where T : class;
+    public SepPropertyRulesContainer<T> RegisterClass<T>() where T : class;
     public void UnregisterClass<T>() where T : class;
 
     public string Write<T>(List<T> instances) where T : class;
@@ -31,9 +31,9 @@ public class SepMapperContext : ISepMapperContext
         this.sep = sep;
     }
 
-    public SepMapperRulesForType<T> RegisterClass<T>() where T : class
+    public SepPropertyRulesContainer<T> RegisterClass<T>() where T : class
     {
-        var typeMapper = new SepMapperRulesForType<T>();
+        var typeMapper = new SepPropertyRulesContainer<T>();
 
         this.mappers.Add(typeof(T), typeMapper);
         return typeMapper;
@@ -160,7 +160,7 @@ public class SepMapperContext : ISepMapperContext
     }
 
 
-    private SepMapperRulesForType<T> GetMapper<T>() where T : class
+    private SepPropertyRulesContainer<T> GetMapper<T>() where T : class
     {
         return this.mappers[typeof(T)];
     }
@@ -185,14 +185,14 @@ public class SepMapperContext : ISepMapperContext
     }
 }
 
-public class SepMapperRulesForType<T> where T : class
+public class SepPropertyRulesContainer<T> where T : class
 {
     // TODO: some form of type erasure SepMapperTypeRulesForProperty<T, P>
     private readonly Dictionary<string, dynamic> rules = new();
 
-    public SepMapperRulesForType<T> AddRule<P>(string key, Expression<Func<T, P>> accessor, [Optional] Func<string, P> toProperty, [Optional] Func<P, string> toCsv)
+    public SepPropertyRulesContainer<T> AddRule<P>(string key, Expression<Func<T, P>> accessor, [Optional] Func<string, P> toProperty, [Optional] Func<P, string> toCsv)
     {
-        var propertyRules = new SepMapperTypeRulesForProperty<T, P>(accessor)
+        var propertyRules = new SepPropertyRule<T, P>(accessor)
         {
             ToProperty = toProperty,
             ToCsv = toCsv,
@@ -218,11 +218,11 @@ public class SepMapperRulesForType<T> where T : class
     }
 }
 
-public class SepMapperTypeRulesForProperty<T, P> where T : class
+public class SepPropertyRule<T, P> where T : class
 {
-    public SepMapperTypeRulesForProperty(Expression<Func<T, P>> Accessor)
+    public SepPropertyRule(Expression<Func<T, P>> accessor)
     {
-        this.Accessor = Accessor;
+        this.Accessor = accessor;
     }
 
     public Expression<Func<T, P>> Accessor;
