@@ -82,6 +82,8 @@ public class TestSepMapper
         var csv = mapperContext.Write(models);
 
         // Assert
-        Assert.Equal("SomeStringA,SomeStringB,SomeInt\nraw,transformed,1\n", csv);
+        Assert.Equal(@"SomeStringA,SomeStringB,SomeInt
+raw,transformed,1
+", csv);
     }
 }
